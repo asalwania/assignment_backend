@@ -95,15 +95,17 @@ exports.createProduct = async (req, res) => {
       price: Number(price),
       description,
       quantity: +quantity,
+      imageUrl: req.file.originalname,
     });
     const result = await productModel.save();
-    res.send(result);
+    res.send({ result });
   } catch (error) {
-    res.send("Error: ", error.message);
+    res.send({ Error: error.message });
   }
 };
 
 exports.getAllProducts = async (req, res) => {
+  console.log(req.host)
   const userId = req.userId;
   try {
     if (req.role !== "user") {
