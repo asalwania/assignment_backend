@@ -11,6 +11,9 @@ const {
   updateProduct,
   deleteProduct,
   getAllProductById,
+  logout,
+  getProductsBySession,
+  getAllSessions
 } = require("../services/user.services");
 
 const router = express.Router();
@@ -28,6 +31,7 @@ const upload = multer({ storage: storage });
 
 // **routes**
 router.post("/login", login);
+router.post("/logout", logout);
 router.post("/", validateToken, addUser);
 router.get("/", validateToken, getUsers);
 
@@ -38,7 +42,9 @@ router.post(
   createProduct
 );
 router.get("/products", validateToken, getAllProducts);
+router.get("/products/:sessionId", validateToken, getProductsBySession);
 router.get("/products/:userId", validateToken, getAllProductById);
+router.get("/sessions/:userId", validateToken, getAllSessions);
 router.put("/product", validateToken, updateProduct);
 router.delete("/product", validateToken, deleteProduct);
 

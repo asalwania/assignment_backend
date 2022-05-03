@@ -1,6 +1,7 @@
 const { default: mongoose } = require("mongoose");
 const User = require("../models/user");
 const Product = require("../models/product");
+const Session = require("../models/session.model");
 
 // **** Common Services ***
 // ----------->
@@ -8,7 +9,15 @@ exports.login = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const foundUser = await User.findOne({ email });
+    const foundUser = await User.findOneAndUpdate(
+      { email },
+
+      {
+        $set: {
+          isActive: true,
+        },
+      }
+    );
     if (!foundUser) {
       throw new Error("Invalid email or password");
     }
@@ -17,12 +26,58 @@ exports.login = async (req, res) => {
     if (!isPasswordValid) {
       throw new Error("Invalid email or password");
     }
+    const session = new Session({
+      _id: new mongoose.Types.ObjectId(),
+    });
+    session.userId = foundUser._id;
+    session.isActive = true;
+    session.loggedInAt = new Date().toISOString();
+    const savedSession = await session.save();
+    const token = foundUser.generateJwt(savedSession._id);
 
-    const token = foundUser.generateJwt();
-
-    res.send({ name: foundUser.name, role: foundUser.role, token });
+    res.send({
+      name: foundUser.name,
+      role: foundUser.role,
+      token,
+      sessionId: savedSession._id,
+      email: foundUser.email,
+      isActive: foundUser.isActive,
+    });
   } catch (error) {
     res.status(400).send({ Error: error.message });
+  }
+};
+
+exports.logout = async (req, res) => {
+  const sessionId = req.body.sessionId;
+  const email = req.body.email;
+  const isActive = false;
+  const now = new Date().toISOString();
+  try {
+    const session = await Session.findOneAndUpdate(
+      { _id: sessionId },
+      {
+        $set: {
+          loggedOutAt: now,
+          isActive: false,
+        },
+      },
+      {
+        returnOriginal: false,
+      }
+    );
+    const user = await User.findOneAndUpdate(
+      { email },
+      {
+        $set: { isActive: false },
+      },
+      {
+        returnOriginal: false,
+      }
+    );
+    res.send({ success: true, user, session });
+  } catch (error) {
+    res.send({ error: error.message });
   }
 };
 
@@ -91,6 +146,7 @@ exports.createProduct = async (req, res) => {
     const productModel = await new Product({
       _id: new mongoose.Types.ObjectId(),
       userId: req.userId,
+      sessionId: req.sessionId,
       name,
       price: Number(price),
       description,
@@ -105,7 +161,6 @@ exports.createProduct = async (req, res) => {
 };
 
 exports.getAllProducts = async (req, res) => {
-  console.log(req.host)
   const userId = req.userId;
   try {
     if (req.role !== "user") {
@@ -115,6 +170,26 @@ exports.getAllProducts = async (req, res) => {
     res.send(products);
   } catch (error) {
     res.send("Error: ", error.message);
+  }
+};
+
+exports.getProductsBySession = async (req, res) => {
+  const sessionId = req.params.sessionId;
+  try {
+    const products = await Product.find({ sessionId });
+    res.send({ products });
+  } catch (error) {
+    res.send({ error: error.message });
+  }
+};
+
+exports.getAllSessions = async (req, res) => {
+  const userId = req.params.userId;
+  try {
+    const sessions = await Session.find({ userId });
+    res.send({ sessions });
+  } catch (error) {
+    res.send({ error: error.message });
   }
 };
 
@@ -139,7 +214,7 @@ exports.updateProduct = async (req, res) => {
     );
     res.send(product);
   } catch (error) {
-    res.send("Error: ", error.message);
+    res.send({ errror: error.message });
   }
 };
 exports.deleteProduct = async (req, res) => {

@@ -8,6 +8,10 @@ const productSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "user",
     },
+    sessionId: {
+      type: Schema.Types.ObjectId,
+      ref: "session",
+    },
     name: {
       type: String,
       required: [true, "Name required"],
