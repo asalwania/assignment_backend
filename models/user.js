@@ -13,7 +13,7 @@ const userSchema = new Schema(
       type: String,
       required: [true, "Email required"],
       unique: true,
-      dropDups: true
+      dropDups: true,
     },
     saltSecret: {
       type: String,
@@ -35,6 +35,10 @@ const userSchema = new Schema(
       type: String,
       default: "user",
     },
+    isActive: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
@@ -52,19 +56,19 @@ userSchema.methods.validPassword = function (inputPassword) {
     .toString("hex");
   return this.password === inputPassword;
 };
-userSchema.methods.generateJwt = function () {
-return jwt.sign(
+userSchema.methods.generateJwt = function (sessionId) {
+  return jwt.sign(
     {
       _id: this._id,
       name: this.name,
       role: this.role,
+      sessionId,
     },
     "secret",
     {
       expiresIn: "24h",
     }
   );
-
 };
 
 module.exports = mongoose.model("user", userSchema);
